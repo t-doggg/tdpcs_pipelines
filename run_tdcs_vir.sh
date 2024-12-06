@@ -1,5 +1,12 @@
 #!/bin/bash
 
+# Virus Mode sould be a mode, where the database is in a potential fast mode for virus analysis?
+# The other method could be to also align in the first step to human, than we need to add
+# extracellular mRNA sequences to delete those too, because of its nature of lysis and sample prep
+
+# Virus database form NCBI could be given by the -d requirement.
+
+
 # Versionsnummer definieren
 VERSION="0.05a"
 
