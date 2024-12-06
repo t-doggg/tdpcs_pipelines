@@ -1,0 +1,174 @@
+#!/bin/bash
+
+# Versionsnummer definieren
+VERSION="0.05a"
+
+# Conda initialisieren
+echo "Initialisiere Conda..."
+eval "$(conda shell.bash hook)"
+echo "Conda initialisiert."
+conda activate tdcs
+
+# Funktion zur Anzeige der Hilfsnachricht
+display_help() {
+    echo "Verwendung: $0 [analyse Requirements] | [check] | [-v]"
+    echo "  Analyse Requirements:   	Führt die Analyse mit den angegebenen Optionen aus"
+    echo " 	-i EINGABEDATEI		Die Eingabedatei im FASTQ-Format"
+    echo " 	-o AUSGABEVERZEICHNIS	Das Ausgabeverzeichnis für die Ergebnisse"
+    echo " 	-x REFERENZDATEI	Die Referenzdatei im FASTA-Format"
+    echo " 	-d DATENBANK_PFAD	Der Pfad zur NCBI-Datenbank"
+    echo " 	-t THREADS		Anzahl der Threads (optional)"
+    echo "	-m MODE			fs, fl, ll oder ls (Standard 'fs')"
+    echo " 	-v 			Versionsabfrage für tdcs"
+    echo " 	check 			Überprüft, ob alle erforderlichen Ordner vorhanden sind"
+}
+
+# Funktion zum Anzeigen der eingegebenen Parameter und zur Bestätigung
+confirm_parameters() {
+    echo "Eingegebene Parameter:"
+    echo "  EINGABEDATEI: 		$INFQ"
+    echo "  AUSGABEVERZEICHNIS: 		$OUTDIR"
+    echo "  REFERENZDATEI: 		$REFHUM"
+    echo "  DATENBANK_PFAD: 		$DATABASE_PATH"
+    echo "  THREADS: 			$THREADS"
+    echo "  MODE: 			$MODE"
+    read -p "Möchten Sie mit diesen Parametern fortfahren? (Ja/Nein): " choice
+    case "$choice" in
+        Ja|ja|J|j|Yes|yes|Y|y ) 
+            run_tdcs;;
+        * ) 
+            echo "Analyse abgebrochen."
+            exit 0;;
+    esac
+}
+
+# Analysemodus ausführen
+run_analysis() {
+    local MODE="fs"  # Standardmäßig im FAST-Modus
+
+    while getopts ":i:o:x:d:t:m:" opt; do
+        case $opt in
+            i)
+                INFQ="$OPTARG"
+                ;;
+            o)
+                OUTDIR="$OPTARG"
+                ;;
+            x)
+                REFHUM="$OPTARG"
+                ;;
+            d)
+                DATABASE_PATH="$OPTARG"
+                ;;
+            t)
+                THREADS="$OPTARG"
+                ;;
+            m)
+                MODE="$OPTARG"
+                ;;
+            \?)
+                echo "Ungültige Option: -$OPTARG" >&2
+                display_help
+                exit 1
+                ;;
+            :)
+                echo "Option -$OPTARG erfordert ein Argument." >&2
+                display_help
+                exit 1
+                ;;
+        esac
+    done
+
+    # Erforderliche Argumente überprüfen
+    if [[ -z $INFQ || -z $OUTDIR || -z $REFHUM || -z $DATABASE_PATH ]]; then
+        echo "Erforderliche Argumente fehlen."
+        display_help
+        exit 1
+    fi
+
+    # Fortfahren mit Funktion basierend auf dem Modus
+    if [ "$MODE" == "htp" ]; then
+        # Ausführen von entsprechendem Skript ohne Bestätigung
+        ./run_tdcs_htp.sh -i "$INFQ" -o "$OUTDIR" -x "$REFHUM" -d "$DATABASE_PATH" -t "$THREADS"
+    else
+        # Anzeigen der eingegebenen Parameter und Bestätigung für andere Modi
+        confirm_parameters
+    fi
+
+}
+
+# Funktion zum Überprüfen der vorhandenen Ordner
+run_check() {
+    local parent_dir="./.."  # Übergeordnetes Verzeichnis, das überprüft werden soll
+    local folders=("shell" "R")  # Liste der zu überprüfenden Ordner
+
+    for folder in "${folders[@]}"; do
+        # Überprüfe, ob der Ordner existiert
+        if [ ! -d "$parent_dir/$folder" ]; then
+            echo "Fehlender Ordner: $folder"
+            exit 1
+        fi
+    done
+
+    echo "Alle erforderlichen Ordner sind vorhanden."
+}
+
+# Funktion zum Überprüfen, ob die Datei "checked" vorhanden ist
+check_checked_file() {
+    local parent_dir="./.."
+    local checked_file="$parent_dir/checked"
+    
+    if [ -f "$checked_file" ]; then
+        echo "Datei 'checked' vorhanden."
+    else
+        echo "Datei 'checked' fehlt."
+    fi
+}
+
+# Versionsabfrage für tdcs durchführen
+query_version() {
+    echo "Version: $VERSION"
+}
+
+
+# Funktion zum Ausführen von run_tdcs.sh basierend auf dem Modus
+run_tdcs() {
+    if [ "$MODE" == "fl" ]; then
+    	# Ausführen von entsprechendem Skript
+        ./run_tdcs_fast_loop.sh -i "$INFQ" -o "$OUTDIR" -x "$REFHUM" -d "$DATABASE_PATH" -t "$THREADS"
+    elif [ "$MODE" == "fs" ]; then
+    	# Ausführen von entsprechendem Skript
+        ./run_tdcs_fast_single.sh -i "$INFQ" -o "$OUTDIR" -x "$REFHUM" -d "$DATABASE_PATH" -t "$THREADS"   
+    elif [ "$MODE" == "ll" ]; then
+    	# Ausführen von entsprechendem Skript
+        ./run_tdcs_long_loop.sh -i "$INFQ" -o "$OUTDIR" -x "$REFHUM" -d "$DATABASE_PATH" -t "$THREADS"
+    elif [ "$MODE" == "ls" ]; then
+    	# Ausführen von entsprechendem Skript
+        ./run_tdcs_long_single.sh -i "$INFQ" -o "$OUTDIR" -x "$REFHUM" -d "$DATABASE_PATH" -t "$THREADS"
+    elif [ "$MODE" == "vir" ]; then
+    	# Ausführen von entsprechendem Skript
+        ./run_tdcs_vir.sh -i "$INFQ" -o "$OUTDIR" -x "$REFHUM" -d "$DATABASE_PATH" -t "$THREADS"
+    elif [ "$MODE" == "dev" ]; then
+    	# Ausführen von entsprechendem Skript
+        ./run_tdcs_dev.sh -i "$INFQ" -o "$OUTDIR" -x "$REFHUM" -d "$DATABASE_PATH" -t "$THREADS"
+    else
+        echo "Ungültiger Modus: $MODE. Der Modus muss entweder 'fl', 'fs', 'll' oder 'ls' sein."
+        exit 1
+    fi
+}
+
+
+
+# Optionen analysieren
+if [ "$1" == "analyse" ]; then
+    shift
+    run_analysis "$@"
+elif [ "$1" == "check" ]; then
+    run_check
+    check_checked_file
+elif [ "$1" == "-v" ]; then
+    query_version
+else
+    display_help
+fi
+
