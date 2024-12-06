@@ -221,25 +221,24 @@ else
 	echo "$(datetime.task) Suche nach Fasta in $OUTDIR/01-CleanedReads/align_to_ref_unaligned_filtered.fa" >> "$BLASTN_LOG"
 
 	# Funktion zum Filtern der Reads nach Länge (>= 400 bp)
-	filter_reads_by_length() {
-	    input_fasta="$1"
-	    output_fasta="$OUTDIR/01-CleanedReads/align_to_ref_unaligned_filtered.fa"
-	    min_length=400
+	#filter_reads_by_length() {
+	#    input_fasta="$1"
+	#    output_fasta="$OUTDIR/01-CleanedReads/align_to_ref_unaligned_filtered.fa"
+	#    min_length=400
 
 	    # Filter: nur Reads >= 400 bp in neue Datei schreiben
-	    awk '/^>/ {header=$0; next} length($0) >= min_length {print header; print $0}' min_length="$min_length" "$input_fasta" > "$output_fasta"
+	#    awk '/^>/ {header=$0; next} length($0) >= min_length {print header; print $0}' min_length="$min_length" "$input_fasta" > "$output_fasta"
 
-	    echo "$(datetime.done) Längenfilter angewendet. Neue Datei: $output_fasta" | tee -a "$BLASTN_LOG"
-	    echo "$output_fasta"
-	}
+	#    echo "$(datetime.done) Längenfilter angewendet. Neue Datei: $output_fasta" | tee -a "$BLASTN_LOG"
+	#    echo "$output_fasta"
+	#}
 
 	# Funktion zur Ausführung von BLASTn aufrufen
 	run_blastn() {
 
-	    # Anwendung des Längenfilters auf die ursprüngliche Datei
-	    filtered_fasta=$(filter_reads_by_length "$OUTDIR/01-CleanedReads/align_to_ref_unaligned.fa")
 
-		filtered_fasta="$OUTDIR/01-CleanedReads/align_to_ref_unaligned.fa"
+	    # Input FASTA für BLASTn-Dateipfad festlegen
+	    pre_filtered_fasta="$OUTDIR/01-CleanedReads/align_to_ref_unaligned.fa"
 
 	    # Ausgabe-TSV-Dateipfad festlegen
 	    ncbi_unbinned_dir="$OUTDIR/02-Classification/out_ncbi.tsv"
@@ -262,10 +261,28 @@ else
 fi
 
 #-------------------------------------------------------------------------------------------------------------------------------------
+# Neuer Filter der Reads nicht mehr rein nach Länge von (400bp) filtert sondern ein Filter
+# welcher nach der Alignment Länge schaut und nur Reads durchlässt, welche größer gleich 200 bp sind
+# Filtert Zeilen, bei denen die 5. Spalte >= 200 ist, und speichern Sie die Ausgabe in einer neuen Datei.
+
+ncbi_unbinned_dir="$OUTDIR/02-Classification/out_ncbi.tsv"
+f_output_file="$OUTDIR/02-Classification/f_out_ncbi.tsv"
+
+awk -F'\t' '$5 >= 200' "$ncbi_unbinned_dir" > "$f_output_file"
+
+echo "Filtered rows saved to $f_output_file"
+
+
+#-------------------------------------------------------------------------------------------------------------------------------------
+# Definiere den Pfad zur Protokolldatei für BLASTn
+RESTRUC_LOG="$OUTDIR/03-Results/restructured.log"
+
+# Erstelle das Verzeichnis, falls es nicht vorhanden ist
+mkdir -p "$(dirname "$RESTRUC_LOG")"
 
 # Ausgabe von BLAST neu anordnen
 # Verzeichnis, in dem sich die TSV-RAW-Datei befindet
-NCBI_RAW="$OUTDIR/02-Classification/out_ncbi.tsv"
+NCBI_RAW="$OUTDIR/02-Classification/f_out_ncbi.tsv"
 
 # Verzeichnis, in dem sich die TSV-MODIFIED-Datei befinden wird
 NCBI_RESTRUCTURED="$OUTDIR/03-Results/res_ncbi.tsv"
