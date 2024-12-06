@@ -220,6 +220,8 @@ else
 	echo "$(datetime.task) Starte BLASTn" >> "$G_LOG_FILE"
 	echo "$(datetime.task) Suche nach Fasta in $OUTDIR/01-CleanedReads/align_to_ref_unaligned_filtered.fa" >> "$BLASTN_LOG"
 
+
+	# The filter could be useful later. It could be that this filter can be used later, because now all the short reads are analyzed with blastn - efficency for computer??
 	# Funktion zum Filtern der Reads nach Länge (>= 400 bp)
 	#filter_reads_by_length() {
 	#    input_fasta="$1"
