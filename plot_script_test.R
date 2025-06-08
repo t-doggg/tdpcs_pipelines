@@ -1,20 +1,13 @@
-#!/usr/bin/env Rscript
-
 # === Load Libraries ===
 library(shiny)
 library(plotly)
 library(DT)
 library(shinythemes)
+library(readr)
 
-# === Parse arguments ===
-args <- commandArgs(trailingOnly = TRUE)
-if (length(args) < 3) {
-  stop("Usage: Rscript shiny_app.R <bacteria_csv> <fastq_file> <amr_summary_tsv>")
-}
-
-csv_path <- args[1]
-fastq_path <- args[2]
-amr_path <- args[3]
+# === Load Data ===
+fastq_path <- "/home/diablo/publ/6_TDPCS_ABGLEICH/b_05_tdpcs_long_single/00-InputData/mergedbarcode05.fastq"
+csv_path <- "/home/diablo/publ/6_TDPCS_ABGLEICH/b_05_tdpcs_long_single/03-Results/s_res_compared_conficence.csv"
 
 # === Read CSV ===
 data <- read.csv(csv_path, stringsAsFactors = FALSE)
@@ -47,7 +40,7 @@ ui <- fluidPage(
     sidebarPanel(
       h4("🔧 Filter & Settings"),
       checkboxInput("disable_threshold", "📊 Show all bacteria (disable threshold)", value = TRUE),
-      sliderInput("count_threshold", "📉 Min combined count (%):", 0.01, 1, 0.1, step = 0.01),
+      sliderInput("count_threshold", "📉 Min combined count (%):", 0.1, 5, 1, step = 0.1),
       checkboxInput("remove_human", "🚫 Remove Human entries", value = TRUE),
       selectInput("plot_type", "📈 Plot Type:",
                   choices = c("Stacked Bar" = "stacked", "Combined Bar" = "combined", "Pie Chart" = "pie")),
@@ -62,9 +55,8 @@ ui <- fluidPage(
     mainPanel(
       tabsetPanel(
         tabPanel("📊 Overview", plotlyOutput("main_plot", height = "600px")),
-        tabPanel("🔹 NCBI", plotlyOutput("plot_1", height = "500px")),
-        tabPanel("🔸 Kraken2", plotlyOutput("plot_2", height = "500px")),
-        tabPanel("🧬 AMR Summary", plotlyOutput("amr_plot", height = "500px")),
+        tabPanel("🔹 Count_1", plotlyOutput("plot_1", height = "500px")),
+        tabPanel("🔸 Count_2", plotlyOutput("plot_2", height = "500px")),
         tabPanel("📋 Table", DTOutput("data_view")),
         tabPanel("📏 Read Sizes", plotlyOutput("read_distribution", height = "500px")),
         tabPanel("📐 Q-Scores", plotlyOutput("qscore_distribution", height = "500px")),
@@ -77,22 +69,10 @@ ui <- fluidPage(
 # === Server ===
 server <- function(input, output, session) {
   
-  # Reactive values for AMR data
-  amr_data <- reactiveVal(data.frame(Class = character(), Subclass = character(), count = numeric()))
-  amr_available <- reactiveVal(FALSE)
-
-  # Load AMR if file exists
-  if (file.exists(amr_path)) {
-    amr_data(read.csv(amr_path, stringsAsFactors = FALSE))
-    amr_available(TRUE)
-  }
-
-  # === Read stats ===
   output$read_median <- renderText({ paste("📌 Median Read Length:", median(read_sizes)) })
   output$read_mean <- renderText({ paste("📌 Mean Read Length:", round(mean(read_sizes), 2)) })
   output$total_reads <- renderText({ paste("📌 Total Reads:", length(read_sizes)) })
-
-  # === Data filtering ===
+  
   filtered_data <- reactive({
     df <- data
     df$combined <- df$count_1 + df$count_2
@@ -109,8 +89,7 @@ server <- function(input, output, session) {
     }
     df
   })
-
-  # === Main plot ===
+  
   output$main_plot <- renderPlotly({
     df <- filtered_data()
     df$color <- ifelse(df$confidence == 1, 'green', 'red')
@@ -136,56 +115,41 @@ server <- function(input, output, session) {
                yaxis = list(title = "Reads"))
     }
   })
-
+  
   output$plot_1 <- renderPlotly({
     df <- filtered_data()
     plot_ly(df, x = ~bacteria, y = ~count_1, type = "bar", name = "Count_1",
             marker = list(color = 'steelblue')) %>%
       layout(title = "Count_1", xaxis = list(title = "Bacterium", tickangle = -45))
   })
-
+  
   output$plot_2 <- renderPlotly({
     df <- filtered_data()
     plot_ly(df, x = ~bacteria, y = ~count_2, type = "bar", name = "Count_2",
             marker = list(color = 'orange')) %>%
       layout(title = "Count_2", xaxis = list(title = "Bacterium", tickangle = -45))
   })
-
+  
   output$data_view <- renderDT({
     datatable(filtered_data(), options = list(pageLength = 10), rownames = FALSE)
   })
-
+  
   output$read_distribution <- renderPlotly({
     plot_ly(x = ~read_sizes, type = "histogram", nbinsx = 50,
             marker = list(color = "#1f77b4")) %>%
       layout(title = "Read Size Distribution", xaxis = list(title = "Length"), yaxis = list(title = "Count"))
   })
-
+  
   output$qscore_distribution <- renderPlotly({
     plot_ly(x = ~q_scores, type = "histogram", nbinsx = 30,
             marker = list(color = "#ff7f0e")) %>%
       layout(title = "Q-Score Distribution", xaxis = list(title = "Q-Score"), yaxis = list(title = "Count"))
   })
-
+  
   output$summary_output <- renderPrint({
     summary(filtered_data())
   })
-
-  output$amr_plot <- renderPlotly({
-    if (!amr_available() || nrow(amr_data()) == 0) {
-      return(plotly_empty(type = "scatter", mode = "markers") %>%
-               layout(title = "No AMR Data Found"))
-    }
-    
-    plot_ly(amr_data(), x = ~Class, y = ~count, type = "bar", color = ~Subclass,
-            text = ~paste("Subclass:", Subclass, "<br>Count:", count),
-            hoverinfo = "text") %>%
-      layout(title = "Antibiotic Resistance Summary",
-             xaxis = list(title = "Resistance Class", tickangle = -45),
-             yaxis = list(title = "Detected Gene Count"),
-             barmode = "stack")
-  })
-
+  
   output$export_data <- downloadHandler(
     filename = function() {
       paste0("filtered_bacteria_", Sys.Date(), ".csv")
@@ -198,3 +162,4 @@ server <- function(input, output, session) {
 
 # Run the App
 shinyApp(ui = ui, server = server)
+

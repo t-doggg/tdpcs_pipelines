@@ -4,10 +4,10 @@
 VERSION="0.04b_fix"
 
 # Conda initialisieren
-echo "Initialisiere Conda..."
-eval "$(conda shell.bash hook)"
-echo "Conda initialisiert."
-conda activate nanophase-v0.2.2
+#echo "Initialisiere Conda..."
+#eval "$(conda shell.bash hook)"
+#echo "Conda initialisiert."
+#conda activate nanophase-v0.2.2
 
 # Funktion zur Anzeige der Hilfsnachricht
 display_help() {
@@ -73,12 +73,11 @@ run_analysis() {
         esac
     done
 
-    # Erforderliche Argumente überprüfen
-    if [[ -z $INFQ || -z $OUTDIR || -z $REFHUM || -d $DATABASE_PATH ]]; then
-        echo "Erforderliche Argumente fehlen."
-        display_help
-        exit 1
-    fi
+    if [[ -z $INFQ || -z $OUTDIR || -z $REFHUM || -z $DATABASE_PATH ]]; then
+    echo "Erforderliche Argumente fehlen."
+    display_help
+    exit 1
+    fi  
 
     # Run tdcs immediately
     run_tdcs
